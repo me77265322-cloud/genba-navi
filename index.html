@@ -1,3 +1,189 @@
-from pathlib import Path
-p=Path("/mnt/data/現場ナビ_176件_地方都道府県検索_完成版.html")
-print(p.exists(), p.stat().st_size if p.exists() else "")
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b57d0">
+<title>現場ナビ 176件</title>
+<style>
+*{box-sizing:border-box}
+.mapTop{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:17px;padding:13px 12px;margin:8px 0 10px;border-radius:12px;background:#0b57d0;color:#fff}
+.mapTop:active{transform:scale(.99)}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif;margin:0;background:#f3f5f7;color:#222}
+.top{position:sticky;top:0;z-index:20;background:#fff;padding:10px 12px;box-shadow:0 2px 8px #9995}
+h1{font-size:20px;margin:0 0 7px}
+input{width:100%;padding:11px 12px;border:1px solid #bbb;border-radius:10px;font-size:16px}
+.count{margin-top:6px;color:#666;font-size:13px}
+main{padding:8px 10px 40px}
+.region{margin:16px 0 6px;font-size:19px;font-weight:800;border-left:5px solid #333;padding-left:8px}
+.pref{margin:8px 0 5px;font-size:16px;font-weight:800}
+.card{background:#fff;border-radius:12px;margin:7px 0;padding:9px;box-shadow:0 1px 4px #0001}
+.name{font-weight:700;font-size:16px;line-height:1.35}
+.coord{font-size:11px;color:#777;margin:3px 0 7px}
+.thumbs{display:flex;gap:7px;overflow-x:auto;margin-bottom:7px}
+.thumb{position:relative;flex:0 0 120px;height:85px;border-radius:8px;overflow:hidden;background:#eee;border:1px solid #ddd}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.tap{display:block;text-decoration:none;color:#fff;background:#0b57d0;text-align:center;font-weight:800;padding:12px;border-radius:10px;font-size:15px}
+.drive{display:inline-block;margin-top:6px;font-size:12px;color:#555;text-decoration:none}
+.hidden{display:none!important}
+.empty{padding:30px;text-align:center;color:#777}
+small{color:#777}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-top:8px}
+.filters button{flex:0 0 auto;border:1px solid #bbb;background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700}
+.filters button.active{background:#333;color:#fff;border-color:#333}
+</style>
+</head>
+
+<body>
+<div class="top">
+<h1>⚓ 現場ナビ <span style="font-size:13px;color:#666">176件</span></h1>
+
+<a class="mapTop"
+href="https://www.google.com/maps/d/viewer?mid=1_Qeq0TwIO_gJhmG-qgB-YRUE5F1gHNw&usp=sharing"
+target="_blank" rel="noopener">🗺️ マップから探す</a>
+
+<input id="q" placeholder="都道府県で検索">
+
+<div class="count" id="count"></div>
+<div class="filters" id="filters"></div>
+</div>
+
+<main id="app"></main>
+
+<script>
+const data=[
+{"name":"大船渡　CS","ids":["1nYZdmY7b_acmMfxxYREcB6RnX-F3w1-c"],"lat":39.0526375,"lon":141.7332499,"pref":"岩手","region":"東北"},
+{"name":"大船渡　太平洋セメント","ids":["1kYOOEQQILB5eRI0gRSZnd8pj57LISABj"],"lat":39.0696591,"lon":141.728849,"pref":"岩手","region":"東北"},
+{"name":"八戸　八戸鉱山","ids":["1QqUwuGsdvrVKcLCTggGT9IH2IBwZUWhA"],"lat":40.533193,"lon":141.5502176,"pref":"青森","region":"東北"},
+{"name":"塩釜　東3号　塩釜港運","ids":["19-EN1QMAk-y6lg5eBI0n5ly_Rl-bmbqx"],"lat":38.3169745,"lon":141.0399297,"pref":"宮城","region":"東北"},
+{"name":"相馬　相馬港湾運送","ids":["13ROtPAt0P1FbQV_Ou12QyK5ER7SAHpOt"],"lat":37.8349856,"lon":140.9585555,"pref":"福島","region":"東北"},
+{"name":"久之浜　東海運","ids":["1v26oZt6v-mF6J5daLq2H166jhi1eq5dE"],"lat":37.1508401,"lon":141.0016904,"pref":"福島","region":"東北"},
+{"name":"常陸那珂　JERA（UT)","ids":["1mgp7zsOlC9jSA2wY5rkjv8u556zFwcQ0"],"lat":36.4405343,"lon":140.6273557,"pref":"茨城","region":"関東"},
+{"name":"船橋　京葉埠頭港運BC岸壁","ids":["1piVMILcmjF3SZroCamQfiMSdBL8xksq6"],"lat":35.6836671,"lon":139.9839993,"pref":"千葉","region":"関東"},
+{"name":"船橋A-4　日向環境","ids":["1pjLOvog45iHKeeT9ek1CoElzixX_LfMc"],"lat":35.6802581,"lon":139.9704035,"pref":"千葉","region":"関東"},
+{"name":"船橋A-3　結城運輸","ids":["1jH9tQqn3THgtxKZztttQMH0ruQxA3c4P"],"lat":35.6800364,"lon":139.9698037,"pref":"千葉","region":"関東"},
+{"name":"千葉　アサガミP1","ids":["1ljY7KCPw1r_m31FP0keXs6_dcQVzqyC_"],"lat":35.5691502,"lon":140.116532,"pref":"千葉","region":"関東"},
+{"name":"浜金谷　トーシン","ids":["1dY4aQgQtl3Wy1WlAtQs0JrCB26ff8fqJ"],"lat":35.1726655,"lon":139.816261,"pref":"千葉","region":"関東"},
+{"name":"館山　鴨川生コン","ids":["125a-c8dTgDErHvNRowQi5D1UlXO5IV-I"],"lat":34.986145,"lon":139.8451454,"pref":"千葉","region":"関東"},
+{"name":"若洲　鈴与シンワ","ids":["1opvlA0F_GlbyELKvm3atnp3KV4xALebt"],"lat":35.6313126,"lon":139.8319831,"pref":"東京","region":"関東"},
+{"name":"若洲15号建材埠頭","ids":["1Q-gxTuUruBD5NLsoFj0diJf1F0T5Ipgc"],"lat":35.6312352,"lon":139.8310021,"pref":"東京","region":"関東"},
+{"name":"城南島D 豊田　トラック","ids":["1w6101MRUP8yeXYPQrMfPBa_By7PZoTMF"],"lat":35.577109,"lon":139.7692472,"pref":"東京","region":"関東"},
+{"name":"城南島E 豊田商店","ids":["16Fi5DW8oaOm0kqEYkin-SOEv8Z86JbEw"],"lat":35.577088,"lon":139.7700422,"pref":"東京","region":"関東"},
+{"name":"京浜島　山崎砂利","ids":["1mA0mnSa9UbLrZ1h51YQGQPGwzOwUtGGN"],"lat":35.5751236,"lon":139.7661976,"pref":"東京","region":"関東"},
+{"name":"京浜島　日栄産業","ids":["1gTECjW06KFX0ZQkRr-F3nG8VnMkTwUDs"],"lat":35.5751126,"lon":139.7649195,"pref":"東京","region":"関東"},
+{"name":"川崎　小島新田","ids":["1qHZPCg5KudvQkHFKT9Ehl2LxCJI4CoPI","164j0lCjB5eDEXkvl041BxcJcdtA4x-au"],"lat":35.5324456,"lon":139.7515423,"pref":"神奈川","region":"関東"},
+{"name":"川崎シーサイドアズコン","ids":["1oQk_iBPhv0rz5Yy3xW2Lsfh4sKybOoNy"],"lat":35.5303725,"lon":139.758279,"pref":"神奈川","region":"関東"},
+{"name":"川崎　中田回漕店","ids":["1yM5F5qtLL1CJ5zjLDJFJjMNDOfnFlrQS"],"lat":35.5194569,"lon":139.7487914,"pref":"神奈川","region":"関東"},
+{"name":"川崎　川崎骨材組合","ids":["1Np4smn_fBUFNYYt8Ak8bRHcUYP5Gf653"],"lat":35.5163563,"lon":139.7416926,"pref":"神奈川","region":"関東"},
+{"name":"川崎水江東亜岸壁　平和汽船","ids":["1dNNv2mWVtRkjzIljWpecJzflZQFCjdGS"],"lat":35.5159453,"lon":139.7446021,"pref":"神奈川","region":"関東"},
+{"name":"川崎　川崎アスコン","ids":["1DKdpbR4mMhThdbN47RxbpsweWcWHRQV7"],"lat":35.5080402,"lon":139.7491384,"pref":"神奈川","region":"関東"},
+{"name":"川崎　日興サービス","ids":["1iJHksxtfhv2XjeN4ZK4zYrFcvC9Vsp1R"],"lat":35.4957283,"lon":139.7085686,"pref":"神奈川","region":"関東"},
+{"name":"大黒　三菱マテリアルC","ids":["1e7vymae92ZoPCq21WDt2f95fPgz7rAiY"],"lat":35.4817487,"lon":139.6705296,"pref":"神奈川","region":"関東"},
+{"name":"横浜　東照海運 (1)","ids":["1saGRpr8K6Rza8pPHEwy-E_fb-iWuhSm4"],"lat":35.4792997,"lon":139.6523566,"pref":"神奈川","region":"関東"},
+{"name":"横浜　昭和電工","ids":["1Sr0HJI7FFq0MNW1jvTEs5LH29YBH25Nr"],"lat":35.4767144,"lon":139.6591912,"pref":"神奈川","region":"関東"},
+{"name":"鈴繁三号　トーホートラスト","ids":["18sSEPyLN_uwiQ5M5fp3PAB0rek9BnxW1"],"lat":35.4745176,"lon":139.6499047,"pref":"神奈川","region":"関東"},
+{"name":"本牧　奥野商事","ids":["1of0uedwCiN2_4cZrdIVkQArGdNUjNN_u"],"lat":35.4264607,"lon":139.6823561,"pref":"神奈川","region":"関東"},
+{"name":"磯子　横浜ベイアズコン","ids":["1BpQXBW8MJbSlM2JSrgElpbO7FtvruEmv"],"lat":35.4004263,"lon":139.6252837,"pref":"神奈川","region":"関東"},
+{"name":"磯子　錦海運","ids":["1_M45hpjfletWqmLpwQZF-Ak5TiTn-H3Y"],"lat":35.392299,"lon":139.6247154,"pref":"神奈川","region":"関東"},
+{"name":"鳥浜　京浜環境開発","ids":["1Q5GRjjr8G8EFmy8Sa2nVIUUtizfYY-8g"],"lat":35.3839284,"lon":139.6362224,"pref":"神奈川","region":"関東"},
+{"name":"金沢木材　大倉","ids":["1BWL4GYMogtF6otc_9wdJP_q77o_ls0jk"],"lat":35.3747628,"lon":139.648625,"pref":"神奈川","region":"関東"},
+{"name":"大磯　松上産業","ids":["1z-YEvlZsB0TjFECiZ670xNjNK0WWhr1_"],"lat":35.3059674,"lon":139.3170446,"pref":"神奈川","region":"関東"},
+{"name":"大磯　日本産業","ids":["1IoZcOLORiLE6K_88GyeIETg-OF2PzWBB"],"lat":35.3058891,"lon":139.3171867,"pref":"神奈川","region":"関東"},
+{"name":"大磯　磯建","ids":["1UcI4OOmyvfLRpn-vqHgqiqlVvWLsizsr"],"lat":35.3054949,"lon":139.3179243,"pref":"神奈川","region":"関東"},
+{"name":"大磯　三和石産","ids":["1c7kvaUV1XXI7WlHly8e3f4GXS-GAJ4B0"],"lat":35.3054377,"lon":139.3180008,"pref":"神奈川","region":"関東"},
+{"name":"長浦　錦海運","ids":["1dXl2ex8INlL7LzWKRhxL8KE7qaOgFETI"],"lat":35.2955635,"lon":139.6376162,"pref":"神奈川","region":"関東"},
+{"name":"横須賀　平成　草川沼","ids":["1-kXKkhJNcWyTQjoGped1mvXvUCRdnfi0"],"lat":35.2736989,"lon":139.6847681,"pref":"神奈川","region":"関東"},
+{"name":"久里浜　マルモリ陸側","ids":["1hWU8pQy-_fscTgaPZnE4VZMa5rCuGMbk"],"lat":35.2223146,"lon":139.7192365,"pref":"神奈川","region":"関東"},
+{"name":"久里浜　マルモリ（沖側）","ids":["1FM9jfCFmZtNmTumHP8OdBZuAUB6_-ykh"],"lat":35.2221087,"lon":139.7194594,"pref":"神奈川","region":"関東"},
+{"name":"沼津　木村土木","ids":["1Hux2tE9m4aP_k-HLju_ALbtEUw3bFasC"],"lat":35.0833424,"lon":138.8503033,"pref":"静岡","region":"中部"},
+{"name":"沼津　木村土木　西岸壁 (1)","ids":["1FMre3vPEmmSET-q8R5heJkJk3ZEsV4tB"],"lat":35.0823061,"lon":138.8505223,"pref":"静岡","region":"中部"},
+{"name":"江の浦　中央開発","ids":["1lZKMqW3-QxLl6N459jYGtLooXIYPuQ0q"],"lat":35.0467098,"lon":138.8874211,"pref":"静岡","region":"中部"},
+{"name":"江ノ浦　木村土木","ids":["1s1rKfrhHNZczg0CqrpQvAvwrzP_elkpy"],"lat":35.0466168,"lon":138.8884564,"pref":"静岡","region":"中部"},
+{"name":"江ノ浦　木村土木　⑤残土バース","ids":["18gNm4LPzbqhU52hcBFmzS5R8OoIZXa1d"],"lat":35.0465317,"lon":138.889645,"pref":"静岡","region":"中部"},
+{"name":"江の浦　木村土木（新バース）","ids":["1evPF23S98CxjZ8FfkWRsOxJMEooDZo94"],"lat":35.0464373,"lon":138.887,"pref":"静岡","region":"中部"},
+{"name":"静浦　口野埠頭","ids":["1uNVYcb9xp6KDy9r-MKeP4HskOGZIGeQo"],"lat":35.0398441,"lon":138.8987018,"pref":"静岡","region":"中部"},
+{"name":"宇久須　丸協組","ids":["1d7Ab5L-GzFLQFEpyj8cl2dkyE_O43k2A","1ckA2P48V0n9bQeCrfsuO8fdMDEghrfSl"],"lat":34.8484759,"lon":138.7699645,"pref":"静岡","region":"中部"},
+{"name":"下田　中央開発","ids":["1Nil7DnZSSQfvN_1DE-aP5sqJimcSxJvc"],"lat":34.6741443,"lon":138.9525096,"pref":"静岡","region":"中部"},
+{"name":"名古屋　由良　8号地","ids":["1QhpVf4g58b4QI61r4PdBBkMcpSqjoeeB"],"lat":35.0731042,"lon":136.885086,"pref":"愛知","region":"中部"},
+{"name":"8号地47番愛知海運","ids":["1TOvp_YHVpSke49ZdAlYGa8F3oyQfkUL6"],"lat":35.0721446,"lon":136.8850223,"pref":"愛知","region":"中部"},
+{"name":"8号地　43~44愛知海運","ids":["1gNeps2MR5kuftyuRSfEb3yR_WVx-xUz8"],"lat":35.0711859,"lon":136.8868194,"pref":"愛知","region":"中部"},
+{"name":"名古屋　サンビック","ids":["1A2QldPQ5k2v4dOhYmL66dZ0EEgK7COef"],"lat":35.0693323,"lon":136.8703429,"pref":"愛知","region":"中部"},
+{"name":"名古屋　ダイセキ","ids":["1eb14s13Ji3TTet_Fohy5KW1b72rwToEt"],"lat":35.0603948,"lon":136.884228,"pref":"愛知","region":"中部"},
+{"name":"名古屋　弥富　由良","ids":["12kZpB1KWpxqqwVVtm95q8Fq6GjxAUzox"],"lat":35.0361824,"lon":136.8007724,"pref":"愛知","region":"中部"},
+{"name":"弥富N2 由良船舶","ids":["1JghvTrdHisreZARlWSFfe6SZCJhnUeTf"],"lat":35.0346245,"lon":136.8007728,"pref":"愛知","region":"中部"},
+{"name":"尾張横須賀 86-2","ids":["1L2e1mTtbsdnVASC-g_8mezkt4q2tCVlV","1pw2vRnRsRCVdP2PPsD3i4Sm0uoG0U1hi"],"lat":35.0119705,"lon":136.8716894,"pref":"愛知","region":"中部"},
+{"name":"尾張横須賀87 名港海運","ids":["1VvRyb3nzVTzdJKfDHak3NetcxGfcaa6k"],"lat":35.0051573,"lon":136.8665496,"pref":"愛知","region":"中部"},
+{"name":"衣浦　石橋建設","ids":["1j7PKbKDrNV9EuwPE_FNlfdLyikxwypEd"],"lat":34.898066,"lon":136.9768611,"pref":"愛知","region":"中部"},
+{"name":"碧南　中部テクノ","ids":["1lxO4F9lA0O7afKDivKAJiIgtVXyy8s5C","1wmeKk-x6LLp4XDPvDWpJaBIn8UsdHD90"],"lat":34.832869,"lon":136.9569749,"pref":"愛知","region":"中部"},
+{"name":"武豊　中部テクノ","ids":["1lqFzQtOkx_OMpylv8TSewc1OatvXMu8h"],"lat":34.8265738,"lon":136.9333527,"pref":"愛知","region":"中部"},
+{"name":"蒲郡二号　愛知海運","ids":["1guavoeAMNzMBUhGLwIAFJwNeQ0XLUMaI"],"lat":34.817712,"lon":137.2216821,"pref":"愛知","region":"中部"},
+{"name":"蒲郡　愛知海運","ids":["1eWzowm0fgpP7oA4UbgVqzwrNr4CvoyDD"],"lat":34.8170649,"lon":137.2225716,"pref":"愛知","region":"中部"},
+{"name":"豊橋　トピー海運　韓国バース.　沖側","ids":["1JhHW7HEupjyMH9IJEx3cTjI32O6ls2ff"],"lat":34.7247536,"lon":137.3197983,"pref":"愛知","region":"中部"},
+{"name":"豊橋　トピー海運　韓国バース　陸側","ids":["1aD8nK8jdR_HdfHi1oFzrdtfX1EXY3BiP"],"lat":34.7247429,"lon":137.3201319,"pref":"愛知","region":"中部"},
+{"name":"田原　東京製鐵","ids":["1WDY-ufpMcT-AbJ44oSN4mTCbGOpvPTtS"],"lat":34.7048903,"lon":137.2524605,"pref":"愛知","region":"中部"},
+{"name":"田原　安倍川開発","ids":["1MRUkgz7Gnet2rV5Eb_NmoLk0M2bxcG3O"],"lat":34.6957563,"lon":137.3014943,"pref":"愛知","region":"中部"},
+{"name":"吉津","ids":["1CnQubs4Q1obdpX3GhtvalR1U1hiknbk9"],"lat":34.2779552,"lon":136.5055675,"pref":"三重","region":"中部"},
+{"name":"尾鷲　パワー産業","ids":["1CnS0S1j5bEW5LHCDZjwFBauaER9Gu1Zu"],"lat":34.07123,"lon":136.2035015,"pref":"三重","region":"中部"},
+{"name":"広畑　日鉄","ids":["1yvqK1MRgjvlGidyGhPrkekSlfDC64xCI"],"lat":34.7836771,"lon":134.6266023,"pref":"兵庫","region":"近畿"},
+{"name":"相生　関西マテック","ids":["1TYdqb8NzRQUn3Uw4qekQFzQprTforcfH"],"lat":34.7770328,"lon":134.4576003,"pref":"兵庫","region":"近畿"},
+{"name":"赤穂　豊工業","ids":["1Q9fg_X-qtBblpaUsSzxFxT9gtNw_d-eM","1ea_cYvWUsI3CpNxk_VGVyObd3QAE5Xk"],"lat":34.7374139,"lon":134.3538756,"pref":"兵庫","region":"近畿"},
+{"name":"西宮　服部商店","ids":["1LSMli7GwuSvZE3aBQbNXtqRVF-4yAsF-"],"lat":34.7152619,"lon":135.3409611,"pref":"兵庫","region":"近畿"},
+{"name":"神戸　深江浜　丸協産業","ids":["1zZZ5lPbUHFtA48mNW8n_AG3yyGgKu8nr"],"lat":34.7115666,"lon":135.2922639,"pref":"兵庫","region":"近畿"},
+{"name":"神戸SRC","ids":["1z98wmg7-cTx75ZPjTO_ELYbBnoBoXVLM"],"lat":34.7083794,"lon":135.2874725,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　近畿道路資材　水門内","ids":["1yMcaHRm4u2lBepy0JPv-LvLYM4FKXqGw"],"lat":34.708305,"lon":135.406412,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　佃　原商店","ids":["1JCSnxy-JPmZGtDyJU7I_efnIb6iIKj4s"],"lat":34.7080093,"lon":135.4273071,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　丸協産業　水門内","ids":["1s2R8ja8LZnjrz_UWHGSbp1USO4AbMOfG"],"lat":34.7061737,"lon":135.4059788,"pref":"兵庫","region":"近畿"},
+{"name":"神戸セイフティアイランド","ids":["1-W9D5GV5qb9LfZw48nxTStbVAD_df-5Q"],"lat":34.7035472,"lon":135.2845411,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　ジオレジャパン","ids":["1Igsfz9Q7mh2tfZ7Wu0RWacZcUvBfFVyw"],"lat":34.7034168,"lon":135.4031672,"pref":"兵庫","region":"近畿"},
+{"name":"大道埠頭　干潮","ids":["101INT60Am_XpghKqtlXaBCkU77MroRYW"],"lat":34.7000849,"lon":135.3937228,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　大道埠頭","ids":["1GF0xkIge4cOPlO5d9rUbd6_oGqdT5ypE"],"lat":34.6989062,"lon":135.3945643,"pref":"兵庫","region":"近畿"},
+{"name":"尼崎　丸協産業","ids":["114U7U02XewCc-awWZzWrTBWG6vO-Smxv"],"lat":34.6947796,"lon":135.3922419,"pref":"兵庫","region":"近畿"},
+{"name":"神戸　近畿道路資材","ids":["1oCXEEYp964QV6wWBsoWUkIXa2Ij15_HS"],"lat":34.662196,"lon":135.1805368,"pref":"兵庫","region":"近畿"},
+{"name":"苅藻　相田運輸","ids":["1RHPmHFuMTVAscTKiWeqFozhThn1l6-Uo"],"lat":34.6485748,"lon":135.1543092,"pref":"兵庫","region":"近畿"},
+{"name":"津名　北淡路建設","ids":["1W-3N_5AFTluTH2HM6br4X7KFip891OHl"],"lat":34.430759,"lon":134.9075603,"pref":"兵庫","region":"近畿"},
+{"name":"安治川　阪南産業","ids":["1IbWLdTzxBV0SuHkt_peDaIMXp75_z3o-"],"lat":34.6741567,"lon":135.4495872,"pref":"大阪","region":"近畿"},
+{"name":"大阪　北港　千石","ids":["1FDc2J1KHYdmnqt8KOKkcWlV722G3YdB7"],"lat":34.6730466,"lon":135.4163861,"pref":"大阪","region":"近畿"},
+{"name":"北港　常吉　岡本建材","ids":["1UHjNkP97TGw4HAxqe9uozfZtb_y9lhKe"],"lat":34.6728461,"lon":135.4155422,"pref":"大阪","region":"近畿"},
+{"name":"大阪　北港ロード","ids":["1pzB1eRE7o2sLzq3HXW0RXAK-EsHvpKnL"],"lat":34.6723145,"lon":135.4235034,"pref":"大阪","region":"近畿"},
+{"name":"大阪　昇和","ids":["1bvGmpsfACP1hZaqGeCtLp14DXkDWBwdD"],"lat":34.6600675,"lon":135.4200983,"pref":"大阪","region":"近畿"},
+{"name":"大阪　梅町　東洋埠頭","ids":["1aHmyOV01P7rxsfO3LL1UfjJtMcSFrUA1"],"lat":34.6580461,"lon":135.4177896,"pref":"大阪","region":"近畿"},
+{"name":"大阪　尻無川　岡本生コン","ids":["1wypA_rBPUy-N8ky3c5HWFT0UszYbCry5","1oPzXkb3Ne6Bw6exge0naB0uU-9-ufAi6"],"lat":34.6564493,"lon":135.4618442,"pref":"大阪","region":"近畿"},
+{"name":"大阪　関西宇部セメント","ids":["1aiIVoAV8jcoRusUlljuQEVbHDsiqz4sW","1EGysUbA3qxJKRtW_koKaD_QEjd6-H3yf"],"lat":34.6478028,"lon":135.4516106,"pref":"大阪","region":"近畿"},
+{"name":"大阪　平山","ids":["1ApuPYgorE9I3Pqd7hHT1tfevcOTWy7D9"],"lat":34.647485,"lon":135.4517366,"pref":"大阪","region":"近畿"},
+{"name":"大阪　津守　泰陽技研","ids":["1MQtK14xaBdZ6nQjdZK-ZAuvvm6Fwt8FC"],"lat":34.6448683,"lon":135.4796769,"pref":"大阪","region":"近畿"},
+{"name":"大正　田中浚渫","ids":["1hVhSZ-MtUb3yw1qbYAxs7pBT6eH2ZYG_"],"lat":34.643047,"lon":135.4596143,"pref":"大阪","region":"近畿"},
+{"name":"大阪　津守　阪南産業","ids":["11VNAA0GlepqZkJxoOrwvQx5IR1Xbe_Jo"],"lat":34.6377585,"lon":135.4788514,"pref":"大阪","region":"近畿"},
+{"name":"津守　伊藤砂利　ホッパー","ids":["1KNzRLsnZMToVtbx6Y0LXcp164CUidoIs"],"lat":34.6330043,"lon":135.4774262,"pref":"大阪","region":"近畿"},
+{"name":"大阪　伊東砂利　放り揚げ砕石.png","ids":["13bmslbNjhHnWgZKfMsZBIt3Rdhl91lmp"],"lat":34.6325541,"lon":135.4772377,"pref":"大阪","region":"近畿"},
+{"name":"木津川　大窯汽船","ids":["1pellIGGu3gD9Gvi82mocAZ5WvVRMMiYx"],"lat":34.6318661,"lon":135.4666631,"pref":"大阪","region":"近畿"},
+{"name":"堺　山崎砂利","ids":["1B3SQvGuj--XCu9Gf9VAh-id1pNmjnSe3"],"lat":34.5856198,"lon":135.4544691,"pref":"大阪","region":"近畿"},
+{"name":"堺　アサノセメント","ids":["1qpwYokBvdvPak8h_7loWNdMjEpzpVF01"],"lat":34.585561,"lon":135.4546958,"pref":"大阪","region":"近畿"},
+{"name":"堺　竹田商店","ids":["1xzMSNtJH8K4A7Nq1TD-I4IRPIv4FAPgU"],"lat":34.5827204,"lon":135.4536061,"pref":"大阪","region":"近畿"},
+{"name":"堺　ベントナイト","ids":["1KGgwFWduSX8C3qUv7spwsvSIfgHNfyL5"],"lat":34.5810862,"lon":135.442083,"pref":"大阪","region":"近畿"},
+{"name":"高石　ハーモニクス","ids":["1Ft3OO41fLo3M0rBWnOWRyiJYfCgvVTwi"],"lat":34.5267713,"lon":135.4238893,"pref":"大阪","region":"近畿"},
+{"name":"泉大津　フェニックス","ids":["1bYdxHMPThieW3xQBEaBmpQskGlL4NYYC"],"lat":34.5258713,"lon":135.382198,"pref":"大阪","region":"近畿"},
+{"name":"岸和田　橋本工業","ids":["1QXpZ2ub_sp7lroSHKx0s9h6k2kM0ijhL"],"lat":34.4623886,"lon":135.35878,"pref":"大阪","region":"近畿"},
+{"name":"岸和田　坂崎運輸","ids":["1KBUoC3T72ykyXN_luHDPYr_39niCMTYi"],"lat":34.4616546,"lon":135.3561729,"pref":"大阪","region":"近畿"},
+{"name":"海南　重丸","ids":["1BjeT_8Z_jaqLIpneVdKLdBS8S1APqltT"],"lat":34.151242,"lon":135.2035632,"pref":"和歌山","region":"近畿"},
+{"name":"水島　東海資材","ids":["1eqSJCgJtTb8doMUEMVyChl7ainHzkMKe"],"lat":34.5210997,"lon":133.737161,"pref":"岡山","region":"中国"},
+{"name":"玉島一号西　タカニシ","ids":["1_Fb9bxV1mWAm3iPcSFDHSWH3a0--pzgR"],"lat":34.519392,"lon":133.6696099,"pref":"岡山","region":"中国"},
+{"name":"水島　JFE 切込みA シップローダー","ids":["1stvqK6Gx7b86DeZV5me7dtaLJoWsAJD-"],"lat":34.5016584,"lon":133.7216753,"pref":"岡山","region":"中国"},
+{"name":"児島㈱nico","ids":["10_seZ0HyymFHd8dU3ItIs1vkXSJfMeCP"],"lat":34.4629481,"lon":133.8144901,"pref":"岡山","region":"中国"},
+{"name":"日比　日比製錬","ids":["1zw4IdC-NAlS8aB5tSk0fp8-PhSbWjejX"],"lat":34.4505154,"lon":133.9258182,"pref":"岡山","region":"中国"},
+{"name":"日比製錬西コンベア","ids":["1bxcPYzm0aecoRd6iJOK7VwB8BBJlonCK"],"lat":34.4496252,"lon":133.9193514,"pref":"岡山","region":"中国"},
+{"name":"福山　沖浦岸壁西","ids":["15C3eNjZIV2vKb-7yrvoDk3bkD7YAZPxg"],"lat":34.4797806,"lon":133.4098913,"pref":"広島","region":"中国"},
+{"name":"福山　JFE E F","ids":["1w89VQ46NlSI2vCE89hzCYrZP0W5rNNLi"],"lat":34.4687013,"lon":133.4459016,"pref":"広島","region":"中国"},
+{"name":"福山　Nバース","ids":["1T4USmZFAISJlVKHeZmhjyC46szW5Lmkm"],"lat":34.4511712,"lon":133.4295978,"pref":"広島","region":"中国"},
+{"name":"廿日市　広島資材","ids":["1hPeXfJwSsaBc1OJzX-khfPJVmjWTweww"],"lat":34.3541157,"lon":132.361105,"pref":"広島","region":"中国"},
+{"name":"廿日市　藤野資材","ids":["1Bq_HDJEouewHZyR8v7NrlGJJmDjj7KnI"],"lat":34.3531414,"lon":132.3616179,"pref":"広島","region":"中国"},
+{"name":"竹原　益田商会","ids":["1CbhUoTg__Qm16Am95ElcvDDD-A2r_o3o"],"lat":34.33263,"lon":132.9133943,"pref":"広島","region":"中国"},
+{"name":"竹原　益田商会　RC","ids":["1sdMA4CBH3TUFqbFojHVBaWwLEt_-R_dA"],"lat":34.3321197,"lon":132.9140705,"pref":"広島","region":"中国"},
+{"name":"似島　タカニシ","ids":["1U2Li4mn-ewMlsN0wqA75QxLt-AKJwrS6","1Vuslvw7zfTBxWou9iGWEcOXuaeE-vdMz"],"lat":34.3036141,"lon":132.4218131,"pref":"広島","region":"中国"},
+{"name":"江田島　小川総合建設（東）","ids":["1udPgB0LiK_k2rUIXD9fF1UwYQSvpF6O2"],"lat":34.1357536,"lon":132.4629132,"pref":"広島","region":"中国"},
+{"name":"江田島　小川総合建設（西）","ids":["12LeoLtdeIIikgUGtox0PDwRy3HJ_rDLB"],"lat":34.1347964,"lon":132.4612536,"pref":"広島","region":"中国"},
+{"name":"黒髪石材桟橋","ids":["1RypPIVLz0NwdM-IkkbAl0R0aqgr2dMPe","1ZNN2pMGHhEpCoJfj9xZKwY2YotFyhNbb"],"lat":34.0353976,"lon":131.7290585,"pref":"山口","region":"中国"},
+{"name":"秋穂　秋穂石材","ids":["1HDnf6n2kqjGrVRRPPalQv0oAV51lx2-D"],"lat":33.9884095,"lon":131.4256601,"pref":"山口","region":"中国"},
+{"name":"秋穂 OMサンド","ids":["1jLaX4dchdJkMERsvIq8UCNmMy4Gg-F9y"],"lat":33.9883647,"lon":131.4547886,"pref":"山口","region":"中国"},
+{"name":"小野田　原田砂販売店","ids":["1hlF-fyN9ht0nDP3rssZqn-mR_0dB0J2r"],"lat":33.9735127,"lon":131.1720291,"pref":"山口","region":"中国"},
+{"name":"小野田　中国電力Cバース","ids":["1gNE1M7DfzSWdbvZpANYw9hRQPRWVP4LS"],"lat":33.967373,"lon":131.1601365,"pref":"山口","region":"中国"},
+{"name":"光　日鉄物流10号岸壁","ids":["1rKJJGgOb7NfUBAC7YPliyZBErXMBmKu9"],"lat":33.9568629,"lon":131.925476,"pref":"山口","region":"中国"
